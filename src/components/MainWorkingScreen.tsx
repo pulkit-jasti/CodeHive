@@ -16,6 +16,9 @@ import { Card } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { IssueType, LanguageType } from '../App';
 import sdk from '@stackblitz/sdk';
+import { GoogleGenAI } from '@google/genai';
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 interface MainWorkingScreenProps {
 	issue: IssueType;
@@ -35,59 +38,16 @@ interface LessonStep {
 	id: number;
 	title: string;
 	description: string;
-	codeSnippet?: string;
+	// codeSnippet?: string;
 }
 
-const mockLessonSteps: LessonStep[] = [
-	{
-		id: 1,
-		title: 'Step 1: Understanding the Issue',
-		description:
-			"Read through the GitHub issue carefully. Identify what needs to be fixed or implemented. Look for any specific requirements or constraints mentioned by the maintainers. Pay close attention to the issue description, any attached screenshots or error logs, and comments from other contributors. Understanding the problem thoroughly before starting to code will save you time and help you create a better solution. Look for related issues and pull requests to see if anyone has attempted to solve this before. Check the project's documentation and coding standards to ensure your solution will align with the project's conventions. Take notes on the key requirements and any edge cases that need to be handled. If anything is unclear, don't hesitate to ask questions in the issue comments before starting your work.",
-		codeSnippet:
-			'// Review the issue description\n// Check for related pull requests\n// Look at existing code structure\n// Read project documentation\n// Note key requirements and edge cases',
-	},
-	{
-		id: 2,
-		title: 'Step 2: Fork and Clone',
-		description:
-			'Fork the repository to your GitHub account. Then clone it to your local environment using StackBlitz. This creates your own copy where you can make changes safely.',
-		codeSnippet:
-			'git clone https://github.com/octocat/Spoon-Knife.git\ncd Spoon-Knife',
-	},
-	{
-		id: 3,
-		title: 'Step 3: Create a Branch',
-		description:
-			"Always work on a new branch instead of the main branch. Use a descriptive name that reflects what you're working on.",
-		codeSnippet:
-			'git checkout -b fix/improve-readme\n// or\ngit checkout -b feature/add-dark-mode',
-	},
-	{
-		id: 4,
-		title: 'Step 4: Make Your Changes',
-		description:
-			"Implement the required changes. Follow the project's coding style and conventions. Test your changes thoroughly to ensure they work as expected.",
-		codeSnippet:
-			'// Edit the relevant files\n// Add new features or fix bugs\n// Ensure code quality and readability',
-	},
-	{
-		id: 5,
-		title: 'Step 5: Commit and Push',
-		description:
-			'Commit your changes with a clear, descriptive message. Then push your branch to your forked repository on GitHub.',
-		codeSnippet:
-			'git add .\ngit commit -m "Fix: Update README with installation steps"\ngit push origin fix/improve-readme',
-	},
-	{
-		id: 6,
-		title: 'Step 6: Create Pull Request',
-		description:
-			'Go to GitHub and create a pull request from your branch to the original repository. Provide a clear description of what you changed and why.',
-		codeSnippet:
-			'// On GitHub:\n// 1. Navigate to original repo\n// 2. Click "New Pull Request"\n// 3. Select your fork and branch\n// 4. Add title and description',
-	},
-];
+const stepsSchema = z.array(
+	z.object({
+		id: z.number(),
+		title: z.string(),
+		description: z.string(),
+	})
+);
 
 const mockChatMessages: ChatMessage[] = [
 	{
@@ -119,7 +79,62 @@ export default function MainWorkingScreen({
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const editorRef = useRef(null);
 
-	console.log('----', issue);
+	const [mockLessonSteps, setMockLessonSteps] = useState<Array<LessonStep>>([
+		{ description: 'loading', id: 0, title: 'loading' },
+	]);
+
+	console.log(';;;;;;;;;;', issue);
+
+	const genAI = new GoogleGenAI({
+		apiKey: '  ',
+	});
+
+	const getChapters = async () => {
+		const prompt = `
+			You are an AI tutor helping a student understand and solve a GitHub issue.
+
+			- Analyze the repository at: ${issue.repoLink}
+			- Analyze the issue at: ${issue.issueLink}
+
+			Your goal:
+			Generate a conceptual, easy-to-follow set of steps that explain how to understand and approach solving this issue.
+
+			Guidelines:
+			- Focus on reasoning and learning, not on providing actual code.
+			- Each step should have a short, descriptive title and a detailed explanation in the body.
+			- Include steps like understanding the repo, identifying the problem, and planning a solution.
+			- Output ONLY valid JSON matching the required format.
+
+			Example output:
+			[
+				{
+					"id": 1,
+					"title": "Getting Started",
+					"description": "Describe what the project is about, and where the relevant files live."
+				},
+				{
+					"id": 2,
+					"title": "Understanding the Repository",
+					"description": "Explain key folders, dependencies, and how they connect to the issue."
+				}
+			]
+			`;
+
+		const response = await genAI.models.generateContent({
+			model: 'gemini-2.5-flash',
+			contents: prompt,
+			config: {
+				responseMimeType: 'application/json',
+				responseJsonSchema: zodToJsonSchema(stepsSchema),
+			},
+		});
+
+		const ggg = stepsSchema.parse(JSON.parse(response.text));
+
+		setMockLessonSteps(ggg);
+
+		console.log('----kkkkkk', ggg);
+	};
 
 	// Get StackBlitz embed URL
 	const stackblitzUrl =
@@ -179,8 +194,6 @@ export default function MainWorkingScreen({
 
 	const currentLessonStep = mockLessonSteps[currentStep];
 
-	console.log('llllllllll', issue.repo);
-
 	useEffect(() => {
 		if (editorRef.current) {
 			sdk.embedGithubProject(
@@ -194,6 +207,10 @@ export default function MainWorkingScreen({
 				}
 			);
 		}
+	}, []);
+
+	useEffect(() => {
+		getChapters();
 	}, []);
 
 	return (
@@ -329,7 +346,7 @@ export default function MainWorkingScreen({
 												{currentLessonStep.description}
 											</p>
 
-											{currentLessonStep.codeSnippet && (
+											{/* {currentLessonStep.codeSnippet && (
 												<div className='bg-gray-900 rounded-md overflow-hidden'>
 													<div className='bg-gray-800 px-3 py-2 border-b border-gray-700'>
 														<span className='text-xs text-gray-400'>
@@ -340,7 +357,7 @@ export default function MainWorkingScreen({
 														<code>{currentLessonStep.codeSnippet}</code>
 													</pre>
 												</div>
-											)}
+											)} */}
 										</div>
 									</div>
 								</Card>

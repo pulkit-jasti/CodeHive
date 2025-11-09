@@ -50,6 +50,10 @@ export default function IssueSummary({
 
 	const [desc, setDesc] = useState<string | undefined>('Loading....');
 
+	const issueLink = `https://github.com/${getRepositoryName(
+		githubIssue.repository_url
+	)}/issues/${githubIssue.number}`;
+
 	const mockIssue: IssueType = {
 		id: githubIssue.id.toString(),
 		title: githubIssue.title,
@@ -76,16 +80,14 @@ export default function IssueSummary({
 				  )} */\n\n/* Your code here */`,
 		solution: '// Solution will be provided after submission',
 		repo: getRepositoryName(githubIssue.repository_url),
+		repoLink: githubIssue.repository_url,
+		issueLink: issueLink,
 	};
 
 	console.log('repo nameeeeee', getRepositoryName(githubIssue.repository_url));
 
-	const issueLink = `https://github.com/${getRepositoryName(
-		githubIssue.repository_url
-	)}/issues/${githubIssue.number}`;
-
 	const ai = new GoogleGenAI({
-		apiKey: '',
+		apiKey: '  ',
 	});
 
 	// const getMessage = async () => {

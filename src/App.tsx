@@ -47,6 +47,8 @@ export interface IssueType {
 	starterCode: string;
 	solution: string;
 	repo: string;
+	repoLink: string;
+	issueLink: string;
 }
 
 export default function App() {
